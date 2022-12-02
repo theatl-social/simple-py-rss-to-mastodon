@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Sample template for a Python Lambda Function: Posts an RSS feed to a Mastodon account
+
+Parameters:
+
+  MastodonInstanceURL:
+    Type: String
+    Default: INSTANCE URL GOES HERE
+
+  RssFeedUrl:
+    Type: String
+    Default: URI GOES HERE # https://www.example.com/rss.xml
+
+  MastodonAccountEmail:
+    Type: String
+    Default: ACCOUNT NAME GOES HERE # this should be the LOWER CASE email address of the account, not the account name
+
+  MastodonPassword:
+    Type: String
+    Default: PASSWORD GOES HERE # or use Secrets Manager, Parameter Store, etc.
+
+  DyanamoDbTableName:
+    Type: String
+    Default: TABLE NAME GOES HERE # should be same region as Lambda function
+
+  DynamoDbRegion:
+    Type: String
+    Default: REGION GOES HERE # should be same region as Lambda function
+
+  MastodonInstanceBaseAPI:
+    Type: String
+    Default: INSTANCE BASE API GOES HERE # https://mastodon.social
+
+
+Resources:
+  RssBot:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Timeout: 750
+      MemorySize: 4096 # this can probably be reduced - recommend testing
+      FunctionName: MastodonRssBot # Your Lambda function name
+      Environment:
+        Variables:
+          RSS_FEED_URL: !Ref RssFeedUrl
+          MSTN_ACCOUNT_EMAIL: !Ref MastodonAccountEmail
+          MSTN_PASSWORD: !Ref MastodonPassword
+          DYNAMODB_TABLE_NAME: !Ref DyanamoDbTableName
+          DYNAMODB_REGION: !Ref DynamoDbRegion
+          BASE_API_URL: !Ref MastodonInstanceBaseAPI
+          MASTODON_INSTANCE_URL: !Ref MastodonInstanceURL
+      Architectures: 
+        - arm64 # Your Lambda architecture - can also run on x86
+      CodeUri: python
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DyanamoDbTableName
+        - DynamoDBWritePolicy:
+            TableName: !Ref DyanamoDbTableName
+
+      # Uncomment this section to allow your function to run every 30 minutes
+      Events:
+        RSSBotEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(30 minutes)
